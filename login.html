@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Green Evershine Library</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>" />
+</head>
+<body>
+  <div class="login-bg">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="icon-wrap">📚</div>
+        <h1>Green Evershine</h1>
+        <p>Library Management System</p>
+      </div>
+
+      <div class="alert alert-error" id="loginError">
+        <span>⚠</span> <span id="loginErrorMsg">Invalid credentials.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input
+          type="text"
+          id="username"
+          class="form-control"
+          placeholder="Enter username"
+          autocomplete="username"
+          autofocus
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input
+            type="password"
+            id="password"
+            class="form-control"
+            placeholder="Enter password"
+            autocomplete="current-password"
+          />
+          <button class="toggle-pw" id="togglePw" type="button" aria-label="Toggle password">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="loginBtn" style="margin-top:0.5rem">
+        Sign In →
+      </button>
+
+      <p style="text-align:center;font-size:0.78rem;color:var(--gray-400);margin-top:1.5rem;">
+        © 2025 Green Evershine Library
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('gel_session') === 'active') {
+      window.location.href = 'dashboard.html';
+    }
+
+    const VALID_USER = 'sonuji';
+    const VALID_PASS = 'sonu@12345';
+
+    document.getElementById('togglePw').addEventListener('click', function() {
+      const pw = document.getElementById('password');
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+      this.textContent = pw.type === 'password' ? '👁' : '🙈';
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+
+    function handleLogin() {
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value;
+      const errorEl = document.getElementById('loginError');
+
+      if (!user || !pass) {
+        showError('Please enter both username and password.');
+        return;
+      }
+      if (user === VALID_USER && pass === VALID_PASS) {
+        localStorage.setItem('gel_session', 'active');
+        localStorage.setItem('gel_user', user);
+        window.location.href = 'dashboard.html';
+      } else {
+        showError('Invalid username or password. Please try again.');
+        document.getElementById('password').value = '';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('loginError');
+      document.getElementById('loginErrorMsg').textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 4000);
+    }
+  </script>
+</body>
+</html>
