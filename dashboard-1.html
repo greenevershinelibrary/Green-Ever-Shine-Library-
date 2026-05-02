@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Green Evershine Library</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>" />
+</head>
+<body>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-icon">📚</div>
+    <span>Green Evershine Library</span>
+  </div>
+  <div class="topbar-actions">
+    <span id="navYearLabel" style="font-size:0.82rem;opacity:0.8;"></span>
+    <button class="btn-icon" id="btnSettings" title="Settings">⚙</button>
+    <button class="btn-icon" id="btnLogout" title="Logout">🚪</button>
+  </div>
+</nav>
+
+<!-- ERROR BANNER (shows if Supabase fails) -->
+<div id="errorBanner" style="display:none;background:#c0392b;color:white;padding:12px 20px;font-size:0.88rem;text-align:center;">
+  ⚠ <span id="errorBannerMsg"></span>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page-wrapper page" id="mainPage">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Students</div>
+      <div class="stat-value" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Year</div>
+      <div class="stat-value" id="statYear">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Paid This Month</div>
+      <div class="stat-value" id="statPaid">—</div>
+    </div>
+  </div>
+
+  <!-- Year bar -->
+  <div class="year-bar">
+    <select class="form-control" id="yearSelect" style="flex:1;max-width:160px;"></select>
+    <button class="btn btn-outline btn-sm" id="btnAddYear">+ New Year</button>
+    <span class="year-count" id="studentCount">0 students</span>
+  </div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="search" class="form-control" id="searchInput" placeholder="Search by name or seat number…" />
+  </div>
+
+  <!-- Section header -->
+  <div class="section-header">
+    <div class="section-title">Students</div>
+    <button class="btn btn-primary btn-sm" id="btnAddStudentTop">+ Add Student</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="spinner-wrap" id="loadingSpinner">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Student cards -->
+  <div class="students-grid" id="studentsGrid" style="display:none;"></div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div class="empty-icon">📭</div>
+    <p>No students found.<br>Click <strong>"+ Add Student"</strong> above or the red <strong>＋</strong> button below.</p>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabAdd" title="Add Student">＋</button>
+
+<!-- ======================== -->
+<!-- MODAL: Add Student       -->
+<!-- ======================== -->
+<div class="modal-overlay" id="addStudentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add New Student</span>
+      <button class="modal-close" data-close="addStudentModal">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div id="addStudentError" style="display:none;background:#fdecea;color:#c0392b;padding:10px 14px;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;"></div>
+      <div id="addStudentSuccess" style="display:none;background:#eafaf1;color:#1e7e45;padding:10px 14px;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;"></div>
+
+      <!-- Photo -->
+      <div class="form-group">
+        <label>Photo (Optional)</label>
+        <div class="photo-upload-area" id="photoUploadArea">
+          <input type="file" id="photoInput" accept="image/*" />
+          <img id="photoPreview" class="photo-upload-preview" src="" alt="preview" />
+          <div class="photo-upload-icon" id="photoIcon">📷</div>
+          <div class="photo-upload-text">Tap to upload photo</div>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" class="form-control" id="newName" placeholder="Student name" />
+        </div>
+        <div class="form-group">
+          <label>Seat Number *</label>
+          <input type="text" class="form-control" id="newSeat" placeholder="e.g. A-12" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Address</label>
+        <input type="text" class="form-control" id="newAddress" placeholder="Full address" />
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" class="form-control" id="newPhone" placeholder="Phone number" />
+        </div>
+        <div class="form-group">
+          <label>Joining Date *</label>
+          <input type="date" class="form-control" id="newJoining" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Year *</label>
+        <select class="form-control" id="newYear"></select>
+      </div>
+
+      <div style="display:flex;gap:0.7rem;margin-top:1rem;">
+        <button class="btn btn-secondary" style="flex:1;" data-close="addStudentModal">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" id="submitAddStudent">Add Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== -->
+<!-- MODAL: Student Details   -->
+<!-- ======================== -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Student Details</span>
+      <button class="modal-close" data-close="detailModal">✕</button>
+    </div>
+    <div class="modal-body" id="detailModalBody"></div>
+  </div>
+</div>
+
+<!-- ======================== -->
+<!-- MODAL: Add New Year      -->
+<!-- ======================== -->
+<div class="modal-overlay" id="addYearModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title">Add New Year</span>
+      <button class="modal-close" data-close="addYearModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Year</label>
+        <input type="number" class="form-control" id="newYearInput" placeholder="e.g. 2026" min="2020" max="2100" />
+      </div>
+      <div class="form-group">
+        <label>Copy students from (optional)</label>
+        <select class="form-control" id="copyFromYear">
+          <option value="">— Start fresh —</option>
+        </select>
+      </div>
+      <p style="font-size:0.82rem;color:var(--gray-400);margin-bottom:1rem;">
+        Copying carries over student data but resets all payments to unpaid.
+      </p>
+      <div style="display:flex;gap:0.7rem;">
+        <button class="btn btn-secondary" style="flex:1;" data-close="addYearModal">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" id="submitAddYear">Create Year</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== -->
+<!-- MODAL: Settings          -->
+<!-- ======================== -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Settings</span>
+      <button class="modal-close" data-close="settingsModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Telegram Chat ID</label>
+        <input type="text" class="form-control" id="telegramChatId" placeholder="e.g. 123456789" />
+        <p style="font-size:0.78rem;color:var(--gray-400);margin-top:4px;">
+          Get your Chat ID by messaging <strong>@userinfobot</strong> on Telegram.
+        </p>
+      </div>
+      <button class="btn btn-primary btn-full" id="saveSettings">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== -->
+<!-- CONFIRM DIALOG           -->
+<!-- ======================== -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">💰</div>
+    <h3 id="confirmTitle">Mark as Paid?</h3>
+    <p id="confirmMsg">This cannot be undone.</p>
+    <div class="btn-row">
+      <button class="btn btn-secondary btn-sm" id="confirmCancel">Cancel</button>
+      <button class="btn btn-success btn-sm" id="confirmOk">Yes, Mark Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://sblzihqudawabcauoyia.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNibHppaHF1ZGF3YWJjYXVveWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MDQyNDIsImV4cCI6MjA5MzI4MDI0Mn0.7hTvQK0qpC2HJnBxNVB4bcCv85o2Qi2e12GbNpwovJg';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let db = null;
+let currentYear = null;
+let searchTimer = null;
+let confirmCallback = null;
+
+// ============================================================
+// AUTH CHECK
+// ============================================================
+if (localStorage.getItem('gel_session') !== 'active') {
+  window.location.href = 'login.html';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Init Supabase
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('✅ Supabase connected');
+  } catch(e) {
+    showBanner('Failed to connect to Supabase: ' + e.message);
+    return;
+  }
+
+  // Set default joining date
+  document.getElementById('newJoining').value = new Date().toISOString().split('T')[0];
+
+  // Load everything
+  await loadYears();
+  await loadStudents();
+  await loadSettings();
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type = 'default') {
+  const container = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => { t.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function showBanner(msg) {
+  document.getElementById('errorBannerMsg').textContent = msg;
+  document.getElementById('errorBanner').style.display = 'block';
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ============================================================
+// OPEN ADD STUDENT MODAL — 3 ways to trigger
+// ============================================================
+function openAddStudentModal() {
+  clearAddForm();
+  // Populate year dropdown
+  const sel = document.getElementById('newYear');
+  sel.innerHTML = '';
+  const opt = document.createElement('option');
+  opt.value = currentYear;
+  opt.textContent = currentYear;
+  sel.appendChild(opt);
+  openModal('addStudentModal');
+}
+
+document.getElementById('fabAdd').addEventListener('click', openAddStudentModal);
+document.getElementById('btnAddStudentTop').addEventListener('click', openAddStudentModal);
+
+// ============================================================
+// LOGOUT & SETTINGS BUTTONS
+// ============================================================
+document.getElementById('btnLogout').addEventListener('click', () => {
+  if (confirm('Logout?')) {
+    localStorage.removeItem('gel_session');
+    localStorage.removeItem('gel_user');
+    window.location.href = 'login.html';
+  }
+});
+
+document.getElementById('btnSettings').addEventListener('click', () => openModal('settingsModal'));
+
+// ============================================================
+// PHOTO PREVIEW
+// ============================================================
+document.getElementById('photoInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('photoPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('photoIcon').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+});
+
+// ============================================================
+// LOAD YEARS
+// ============================================================
+async function loadYears() {
+  try {
+    const { data, error } = await db.from('years').select('*').order('year', { ascending: false });
+
+    if (error) {
+      showBanner('DB Error (years): ' + error.message + '. Did you run schema.sql?');
+      return;
+    }
+
+    const yearSel = document.getElementById('yearSelect');
+    const copyFrom = document.getElementById('copyFromYear');
+
+    if (!data || data.length === 0) {
+      // Auto-create current year
+      const thisYear = new Date().getFullYear();
+      const { error: insertErr } = await db.from('years').insert({ year: thisYear });
+      if (insertErr) {
+        showBanner('Cannot create year: ' + insertErr.message);
+        return;
+      }
+      data.push({ year: thisYear });
+    }
+
+    yearSel.innerHTML = '';
+    copyFrom.innerHTML = '<option value="">— Start fresh —</option>';
+
+    data.forEach(y => {
+      const o1 = document.createElement('option');
+      o1.value = y.year; o1.textContent = y.year;
+      yearSel.appendChild(o1);
+
+      const o2 = document.createElement('option');
+      o2.value = y.year; o2.textContent = y.year;
+      copyFrom.appendChild(o2);
+    });
+
+    currentYear = parseInt(yearSel.value);
+    document.getElementById('navYearLabel').textContent = 'Year: ' + currentYear;
+    document.getElementById('statYear').textContent = currentYear;
+
+  } catch(e) {
+    showBanner('loadYears error: ' + e.message);
+  }
+}
+
+document.getElementById('yearSelect').addEventListener('change', async function() {
+  currentYear = parseInt(this.value);
+  document.getElementById('navYearLabel').textContent = 'Year: ' + currentYear;
+  document.getElementById('statYear').textContent = currentYear;
+  await loadStudents();
+});
+
+// ============================================================
+// LOAD STUDENTS
+// ============================================================
+async function loadStudents(search = '') {
+  const spinner = document.getElementById('loadingSpinner');
+  const grid    = document.getElementById('studentsGrid');
+  const empty   = document.getElementById('emptyState');
+
+  spinner.style.display = 'flex';
+  grid.style.display    = 'none';
+  empty.style.display   = 'none';
+
+  try {
+    let query = db.from('students').select('*').eq('year', currentYear).order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,seat_number.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      showBanner('DB Error (students): ' + error.message);
+      spinner.style.display = 'none';
+      return;
+    }
+
+    spinner.style.display = 'none';
+    const students = data || [];
+
+    document.getElementById('statTotal').textContent    = students.length;
+    document.getElementById('studentCount').textContent = students.length + ' student' + (students.length !== 1 ? 's' : '');
+
+    if (students.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    grid.innerHTML = '';
+    students.forEach(s => grid.appendChild(buildCard(s)));
+    grid.style.display = 'grid';
+
+    // Paid this month count
+    const thisMonth = new Date().getMonth() + 1;
+    const { count } = await db.from('payments').select('*', { count: 'exact', head: true })
+      .eq('year', currentYear).eq('month', thisMonth).eq('status', 'paid');
+    document.getElementById('statPaid').textContent = count || 0;
+
+  } catch(e) {
+    spinner.style.display = 'none';
+    showBanner('loadStudents error: ' + e.message);
+  }
+}
+
+// ============================================================
+// BUILD STUDENT CARD
+// ============================================================
+function buildCard(s) {
+  const card = document.createElement('div');
+  card.className = 'student-card';
+
+  const photoHtml = s.photo_url
+    ? `<img src="${s.photo_url}" alt="${esc(s.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`
+    : `<span style="font-size:3rem">👤</span>`;
+
+  card.innerHTML = `
+    <div class="student-card-photo">${photoHtml}</div>
+    <div class="student-card-body">
+      <div class="student-card-name">${esc(s.name)}</div>
+      <div class="student-card-seat">🪑 Seat: ${esc(s.seat_number || '—')}</div>
+      <div class="student-card-meta">📅 Joined: ${formatDate(s.joining_date)}</div>
+    </div>
+    <div class="student-card-footer">
+      <button class="btn btn-primary btn-sm btn-full">View Details →</button>
+    </div>
+  `;
+
+  card.querySelector('button').addEventListener('click', () => openDetail(s));
+  return card;
+}
+
+// ============================================================
+// STUDENT DETAIL MODAL
+// ============================================================
+async function openDetail(student) {
+  const body = document.getElementById('detailModalBody');
+  body.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  openModal('detailModal');
+
+  try {
+    const { data: payments, error } = await db.from('payments')
+      .select('*').eq('student_id', student.id).eq('year', currentYear).order('month');
+
+    if (error) throw error;
+
+    const payMap = {};
+    (payments || []).forEach(p => { payMap[p.month] = p; });
+
+    const photoHtml = student.photo_url
+      ? `<img src="${student.photo_url}" alt="${esc(student.name)}" style="width:100%;height:100%;object-fit:cover;" />`
+      : `<span style="font-size:2.5rem">👤</span>`;
+
+    body.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-photo">${photoHtml}</div>
+        <div class="detail-info">
+          <h2>${esc(student.name)}</h2>
+          <p>📱 ${esc(student.phone || '—')}</p>
+          <p>🏠 ${esc(student.address || '—')}</p>
+          <p>📅 Joined: ${formatDate(student.joining_date)}</p>
+          <span class="badge">Seat ${esc(student.seat_number || '—')}</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">💰 Fee Payments — ${currentYear}</div>
+      <p style="font-size:0.78rem;color:var(--gray-400);margin-bottom:0.8rem;">
+        Tap a red month to mark paid. Cannot be undone.
+      </p>
+      <div class="months-grid" id="monthsGrid">
+        ${MONTHS.map((m, i) => {
+          const p    = payMap[i + 1];
+          const paid = p?.status === 'paid';
+          return `<button
+            class="month-btn ${paid ? 'paid' : 'unpaid'}"
+            data-pid="${p?.id || ''}"
+            data-month="${i + 1}"
+            data-sid="${student.id}"
+            ${paid ? 'disabled' : ''}
+          >${m}</button>`;
+        }).join('')}
+      </div>
+    `;
+
+    body.querySelectorAll('.month-btn.unpaid').forEach(btn => {
+      btn.addEventListener('click', () => handlePay(btn));
+    });
+
+  } catch(e) {
+    body.innerHTML = `<div style="color:red;padding:1rem;">Error: ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// MARK PAYMENT
+// ============================================================
+function handlePay(btn) {
+  const month = parseInt(btn.dataset.month);
+  showConfirm(
+    'Mark as Paid?',
+    `Mark ${MONTHS[month-1]} as paid? Cannot be undone.`,
+    async () => {
+      const pid = btn.dataset.pid;
+      const sid = btn.dataset.sid;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '…';
+
+      try {
+        // If no payment record exists yet, insert one
+        if (!pid) {
+          const { error } = await db.from('payments').insert({
+            student_id: sid, month: month, status: 'paid', year: currentYear
+          });
+          if (error) throw error;
+        } else {
+          // Check current status first
+          const { data: current } = await db.from('payments').select('status').eq('id', pid).single();
+          if (current?.status === 'paid') {
+            showToast('Already marked as paid.', 'error');
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
+          }
+          const { error } = await db.from('payments').update({ status: 'paid' }).eq('id', pid).eq('status', 'unpaid');
+          if (error) throw error;
+        }
+
+        btn.className = 'month-btn paid';
+        btn.textContent = MONTHS[month - 1];
+        showToast(MONTHS[month-1] + ' marked as paid ✓', 'success');
+
+        // Refresh paid stat
+        const thisMonth = new Date().getMonth() + 1;
+        const { count } = await db.from('payments').select('*', { count: 'exact', head: true })
+          .eq('year', currentYear).eq('month', thisMonth).eq('status', 'paid');
+        document.getElementById('statPaid').textContent = count || 0;
+
+      } catch(e) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        showToast('Error: ' + e.message, 'error');
+      }
+    }
+  );
+}
+
+// ============================================================
+// ADD STUDENT
+// ============================================================
+document.getElementById('submitAddStudent').addEventListener('click', async () => {
+  const name    = document.getElementById('newName').value.trim();
+  const seat    = document.getElementById('newSeat').value.trim();
+  const address = document.getElementById('newAddress').value.trim();
+  const phone   = document.getElementById('newPhone').value.trim();
+  const joining = document.getElementById('newJoining').value;
+  const year    = parseInt(document.getElementById('newYear').value);
+  const photo   = document.getElementById('photoInput').files[0];
+
+  const errEl = document.getElementById('addStudentError');
+  const okEl  = document.getElementById('addStudentSuccess');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if (!name) { errEl.textContent = '⚠ Name is required.'; errEl.style.display = 'block'; return; }
+  if (!seat) { errEl.textContent = '⚠ Seat number is required.'; errEl.style.display = 'block'; return; }
+  if (!joining) { errEl.textContent = '⚠ Joining date is required.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('submitAddStudent');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  try {
+    // Upload photo if provided
+    let photo_url = null;
+    if (photo) {
+      const ext  = photo.name.split('.').pop();
+      const fname = Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
+      const { error: upErr } = await db.storage.from('student-photos').upload(fname, photo);
+      if (upErr) {
+        // Photo upload failed — continue without photo
+        console.warn('Photo upload failed:', upErr.message);
+        showToast('Photo upload skipped: ' + upErr.message, 'error');
+      } else {
+        const { data: urlData } = db.storage.from('student-photos').getPublicUrl(fname);
+        photo_url = urlData.publicUrl;
+      }
+    }
+
+    // Insert student
+    const { data: newStudent, error: stuErr } = await db.from('students').insert({
+      name, address, phone, seat_number: seat, joining_date: joining, photo_url, year
+    }).select().single();
+
+    if (stuErr) throw stuErr;
+
+    // Insert 12 payment records
+    const rows = MONTHS.map((_, i) => ({
+      student_id: newStudent.id, month: i + 1, status: 'unpaid', year
+    }));
+    const { error: payErr } = await db.from('payments').insert(rows);
+    if (payErr) console.warn('Payment rows error:', payErr.message);
+
+    okEl.textContent = '✅ ' + name + ' added successfully!';
+    okEl.style.display = 'block';
+    showToast(name + ' added!', 'success');
+
+    setTimeout(async () => {
+      closeModal('addStudentModal');
+      clearAddForm();
+      await loadStudents();
+    }, 1200);
+
+  } catch(e) {
+    errEl.textContent = '⚠ ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add Student';
+  }
+});
+
+// ============================================================
+// ADD NEW YEAR
+// ============================================================
+document.getElementById('btnAddYear').addEventListener('click', () => {
+  document.getElementById('newYearInput').value = new Date().getFullYear() + 1;
+  openModal('addYearModal');
+});
+
+document.getElementById('submitAddYear').addEventListener('click', async () => {
+  const year     = parseInt(document.getElementById('newYearInput').value);
+  const copyFrom = document.getElementById('copyFromYear').value;
+  const btn      = document.getElementById('submitAddYear');
+
+  if (!year || year < 2020 || year > 2100) {
+    showToast('Enter a valid year (e.g. 2026)', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = copyFrom ? 'Copying…' : 'Creating…';
+
+  try {
+    // Insert year
+    const { error: yearErr } = await db.from('years').insert({ year }).select();
+    if (yearErr && !yearErr.message.includes('duplicate')) throw yearErr;
+
+    if (copyFrom) {
+      // Copy students
+      const { data: students } = await db.from('students').select('*').eq('year', parseInt(copyFrom));
+      for (const s of (students || [])) {
+        const { data: ns, error: nsErr } = await db.from('students').insert({
+          name: s.name, address: s.address, phone: s.phone,
+          seat_number: s.seat_number, joining_date: s.joining_date,
+          photo_url: s.photo_url, year
+        }).select().single();
+        if (nsErr) continue;
+        const rows = MONTHS.map((_, i) => ({ student_id: ns.id, month: i+1, status: 'unpaid', year }));
+        await db.from('payments').insert(rows);
+      }
+      showToast('Year ' + year + ' created with ' + (students?.length || 0) + ' students!', 'success');
+    } else {
+      showToast('Year ' + year + ' created!', 'success');
+    }
+
+    closeModal('addYearModal');
+    await loadYears();
+    document.getElementById('yearSelect').value = year;
+    currentYear = year;
+    document.getElementById('navYearLabel').textContent = 'Year: ' + year;
+    document.getElementById('statYear').textContent = year;
+    await loadStudents();
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Year';
+  }
+});
+
+// ============================================================
+// SEARCH
+// ============================================================
+document.getElementById('searchInput').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadStudents(this.value.trim()), 350);
+});
+
+// ============================================================
+// SETTINGS
+// ============================================================
+async function loadSettings() {
+  try {
+    const { data } = await db.from('admin_settings').select('telegram_chat_id').eq('id', 1).single();
+    if (data?.telegram_chat_id) {
+      document.getElementById('telegramChatId').value = data.telegram_chat_id;
+    }
+  } catch(e) { /* ignore */ }
+}
+
+document.getElementById('saveSettings').addEventListener('click', async () => {
+  const chatId = document.getElementById('telegramChatId').value.trim();
+  if (!chatId) { showToast('Enter a Chat ID first.', 'error'); return; }
+  try {
+    const { error } = await db.from('admin_settings').upsert({ id: 1, telegram_chat_id: chatId });
+    if (error) throw error;
+    showToast('Settings saved!', 'success');
+    closeModal('settingsModal');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+});
+
+// ============================================================
+// CONFIRM DIALOG
+// ============================================================
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent   = msg;
+  confirmCallback = onOk;
+  openModal('confirmOverlay');
+}
+document.getElementById('confirmOk').addEventListener('click', () => {
+  closeModal('confirmOverlay');
+  if (confirmCallback) confirmCallback();
+  confirmCallback = null;
+});
+document.getElementById('confirmCancel').addEventListener('click', () => {
+  closeModal('confirmOverlay');
+  confirmCallback = null;
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function clearAddForm() {
+  ['newName','newSeat','newAddress','newPhone'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('newJoining').value = new Date().toISOString().split('T')[0];
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoIcon').style.display    = 'block';
+  document.getElementById('addStudentError').style.display  = 'none';
+  document.getElementById('addStudentSuccess').style.display = 'none';
+}
+</script>
+</body>
+</html>
