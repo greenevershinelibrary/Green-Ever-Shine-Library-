@@ -540,7 +540,7 @@ select.form-control { cursor: pointer; }
   transform: scale(1.03);
 }
 
-/* Blue = upcoming (cycle not yet reached) */
+/* Blue = upcoming (cycle not yet reached, but student is enrolled) */
 .month-btn.upcoming {
   background: #e8f4fd;
   border-color: #90caf9;
@@ -551,6 +551,17 @@ select.form-control { cursor: pointer; }
   color: white;
   transform: scale(1.03);
 }
+
+/* Grey = blocked (student hadn't joined yet this month) */
+.month-btn.blocked {
+  background: #f2f2f2;
+  border-color: #d0d0d0;
+  color: #bbb;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.month-btn.blocked .month-btn-name { text-decoration: line-through; }
+.month-btn.blocked:hover { transform: none; background: #f2f2f2; }
 
 /* Green = paid */
 .month-btn.paid {
@@ -731,3 +742,154 @@ select.form-control { cursor: pointer; }
 }
 .chip-red { background: var(--red-pale); color: var(--red); }
 .chip-green { background: var(--green-light); color: var(--green); }
+
+/* ===== SEAT MANAGEMENT ===== */
+.seat-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.seat-tile {
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 0.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 2px solid transparent;
+  cursor: default;
+  transition: all var(--transition);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+.seat-tile.seat-empty {
+  background: #eafaf1;
+  border-color: #27ae60;
+  color: #1e7e45;
+}
+.seat-tile.seat-filled {
+  background: #fdecea;
+  border-color: #c0392b;
+  color: #a02020;
+}
+.seat-tile .seat-code {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+.seat-tile .seat-student {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+.seat-tile .seat-status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.seat-tile.seat-empty .seat-status-dot { background: #27ae60; }
+.seat-tile.seat-filled .seat-status-dot { background: #c0392b; }
+.seat-tile .seat-del-btn {
+  position: absolute;
+  top: 3px; right: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  opacity: 0.4;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.seat-tile:hover .seat-del-btn { opacity: 0.9; }
+.seat-legend {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.seat-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--gray-700);
+}
+.seat-legend-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+}
+.seat-legend-dot.green { background: #27ae60; }
+.seat-legend-dot.red   { background: #c0392b; }
+.seats-add-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.seats-add-row input {
+  flex: 1;
+  min-width: 100px;
+  max-width: 180px;
+}
+.seat-stats-row {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.seat-stat {
+  background: white;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  font-size: 0.82rem;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+.seat-stat strong {
+  display: block;
+  font-size: 1.3rem;
+  font-family: 'Playfair Display', serif;
+}
+.seat-stat.stat-filled strong { color: var(--red); }
+.seat-stat.stat-empty strong  { color: var(--green); }
+.seat-stat.stat-total strong  { color: var(--black); }
+
+/* Nav tab for Seat Data */
+.nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--gray-200);
+}
+.nav-tab {
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--gray-400);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: all var(--transition);
+}
+.nav-tab.active {
+  color: var(--red);
+  border-bottom-color: var(--red);
+  background: var(--red-pale);
+}
+.nav-tab:hover:not(.active) { color: var(--gray-700); background: var(--gray-100); }
+
+.page-section { display: none; }
+.page-section.active { display: block; }

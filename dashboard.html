@@ -45,6 +45,15 @@
 <!-- MAIN PAGE -->
 <div class="page-wrapper page" id="mainPage">
 
+  <!-- Navigation Tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tabStudents" onclick="switchTab('students')">👥 Students</button>
+    <button class="nav-tab" id="tabSeats" onclick="switchTab('seats')">🪑 Seat Data</button>
+  </div>
+
+  <!-- ===== STUDENTS SECTION ===== -->
+  <div class="page-section active" id="sectionStudents">
+
   <!-- Stats -->
   <div class="stats-row">
     <div class="stat-card">
@@ -95,6 +104,73 @@
     <p>No students found.<br>Click <strong>"+ Add Student"</strong> above or the red <strong>＋</strong> button below.</p>
   </div>
 
+  </div><!-- /sectionStudents -->
+
+  <!-- ===== SEAT DATA SECTION ===== -->
+  <div class="page-section" id="sectionSeats">
+
+    <div class="section-header" style="margin-bottom:1rem;">
+      <div class="section-title">🪑 Seat Management</div>
+      <button class="btn btn-primary btn-sm" id="btnManageSeats">⚙ Manage Seats</button>
+    </div>
+
+    <!-- Seat legend -->
+    <div class="seat-legend">
+      <div class="seat-legend-item"><div class="seat-legend-dot green"></div> Empty (Available)</div>
+      <div class="seat-legend-item"><div class="seat-legend-dot red"></div> Filled (Occupied)</div>
+    </div>
+
+    <!-- Seat stats -->
+    <div class="seat-stats-row">
+      <div class="seat-stat stat-total"><strong id="seatStatTotal">—</strong>Total Seats</div>
+      <div class="seat-stat stat-filled"><strong id="seatStatFilled">—</strong>Filled</div>
+      <div class="seat-stat stat-empty"><strong id="seatStatEmpty">—</strong>Available</div>
+    </div>
+
+    <!-- Spinner -->
+    <div class="spinner-wrap" id="seatLoadingSpinner"><div class="spinner"></div></div>
+
+    <!-- Seat map grid -->
+    <div class="seat-map-grid" id="seatMapGrid" style="display:none;"></div>
+
+    <!-- Empty seats state -->
+    <div class="empty-state" id="seatEmptyState" style="display:none;">
+      <div class="empty-icon">🪑</div>
+      <p>No seats configured yet.<br>Click <strong>"⚙ Manage Seats"</strong> to add seat codes.</p>
+    </div>
+
+  </div><!-- /sectionSeats -->
+
+</div>
+
+<!-- ======================== -->
+<!-- MODAL: Manage Seats      -->
+<!-- ======================== -->
+<div class="modal-overlay" id="manageSeatsModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Manage Seats</span>
+      <button class="modal-close" data-close="manageSeatsModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--gray-400);margin-bottom:1rem;">
+        Add seat codes manually (e.g. A1, B2, 101). Each seat will be tracked as filled or empty based on student assignments.
+      </p>
+      <div class="seats-add-row">
+        <input type="text" class="form-control" id="newSeatCode" placeholder="e.g. A1, A2, B1" style="text-transform:uppercase;" />
+        <button class="btn btn-primary btn-sm" id="btnAddSeatCode">+ Add</button>
+      </div>
+      <p style="font-size:0.78rem;color:var(--gray-400);margin-bottom:0.8rem;">
+        💡 Separate multiple seats with commas: <em>A1, A2, A3</em>
+      </p>
+      <div id="manageSeatsList" style="max-height:280px;overflow-y:auto;">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+      </div>
+      <div style="margin-top:1rem;">
+        <button class="btn btn-secondary btn-full" data-close="manageSeatsModal">Done</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- FAB -->
@@ -640,35 +716,49 @@ async function openDetail(student) {
       <div class="divider"></div>
       <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">💰 Fee Payments — ${currentYear}</div>
       <p style="font-size:0.78rem;color:var(--gray-400);margin-bottom:0.8rem;">
-        Tap an unpaid month to mark paid. Cannot be undone. 🟠 Orange = fee due. Due dates are 30 days from joining.
+        Tap an unpaid month to mark paid. Cannot be undone. 🟠 Orange = fee due. ⬜ Grey = not enrolled yet.
       </p>
       <div class="months-grid" id="monthsGrid">
         ${MONTHS.map((m, i) => {
-          const p    = payMap[i + 1];
-          const paid = p?.status === 'paid';
+          const monthNum = i + 1; // 1-based calendar month number
+          const p        = payMap[monthNum];
+          const paid     = p?.status === 'paid';
 
-          // Calculate due date for this cycle: joiningDate + (i+1)*30 days
+          // ── Months before joining month are BLOCKED ──
+          if (monthNum < joinMonth) {
+            return `<button class="month-btn blocked" disabled title="Student had not joined yet">
+              <span class="month-btn-name">${m}</span>
+              <span class="month-btn-due">Not enrolled</span>
+            </button>`;
+          }
+
+          // ── Due date: same day-of-month as joining, in this calendar month ──
+          // e.g. joined 15 May → due 15 May, 15 Jun, 15 Jul …
           let dueLabel = '';
-          let isDue = false;
+          let isDue    = false;
           let isFuture = false;
           if (student.joining_date) {
-            const joining = new Date(student.joining_date);
-            const dueDate = new Date(joining.getTime() + (i + 1) * 30 * 24 * 60 * 60 * 1000);
-            const now = new Date();
-            isDue = !paid && dueDate <= now;
-            isFuture = !paid && dueDate > now;
+            const joining   = new Date(student.joining_date);
+            const joinDay   = joining.getDate();
+            const dueYear   = currentYear;
+            // Clamp day to last day of this month (e.g. 31 Jan → 28/29 Feb)
+            const lastDay   = new Date(dueYear, monthNum, 0).getDate();
+            const dueDate   = new Date(dueYear, monthNum - 1, Math.min(joinDay, lastDay));
+            const now       = new Date();
+            isDue    = !paid && monthNum <= thisMonth && dueDate <= now;
+            isFuture = !paid && (monthNum > thisMonth || dueDate > now);
             dueLabel = dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
           }
 
           let btnClass = 'month-btn ';
-          if (paid) btnClass += 'paid';
+          if (paid)       btnClass += 'paid';
           else if (isDue) btnClass += 'due';
-          else btnClass += 'upcoming';
+          else            btnClass += 'upcoming';
 
           return `<button
             class="${btnClass}"
             data-pid="${p?.id || ''}"
-            data-month="${i + 1}"
+            data-month="${monthNum}"
             data-sid="${student.id}"
             ${paid ? 'disabled' : ''}
           ><span class="month-btn-name">${m}</span><span class="month-btn-due">${dueLabel}</span></button>`;
@@ -849,6 +939,23 @@ document.getElementById('submitAddStudent').addEventListener('click', async () =
   const btn = document.getElementById('submitAddStudent');
   const isEdit = !!btn._editMode;
   btn.disabled = true;
+  btn.textContent = isEdit ? 'Checking…' : 'Checking…';
+
+  // ── Seat conflict check ──
+  try {
+    const occupant = await isSeatTaken(seat, isEdit ? btn._editId : null);
+    if (occupant) {
+      errEl.textContent = `⚠ Seat "${seat.trim().toUpperCase()}" is already occupied by ${occupant.name}. Please choose a different seat.`;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Add Student';
+      return;
+    }
+  } catch(e) {
+    // If seat check fails, allow proceeding (non-fatal)
+    console.warn('Seat check error:', e.message);
+  }
+
   btn.textContent = isEdit ? 'Saving…' : 'Adding…';
 
   try {
@@ -1159,8 +1266,218 @@ document.getElementById('confirmCancel').addEventListener('click', () => {
 });
 
 // ============================================================
-// HELPERS
+// TAB SWITCHING
 // ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  if (tab === 'students') {
+    document.getElementById('tabStudents').classList.add('active');
+    document.getElementById('sectionStudents').classList.add('active');
+    document.getElementById('fabAdd').style.display = 'flex';
+  } else {
+    document.getElementById('tabSeats').classList.add('active');
+    document.getElementById('sectionSeats').classList.add('active');
+    document.getElementById('fabAdd').style.display = 'none';
+    loadSeatMap();
+  }
+}
+
+// ============================================================
+// SEAT MAP — load & render
+// ============================================================
+async function loadSeatMap() {
+  const spinner  = document.getElementById('seatLoadingSpinner');
+  const grid     = document.getElementById('seatMapGrid');
+  const empty    = document.getElementById('seatEmptyState');
+  spinner.style.display = 'flex';
+  grid.style.display    = 'none';
+  empty.style.display   = 'none';
+
+  try {
+    // 1. All seats
+    const { data: seats, error: sErr } = await db.from('seats').select('*').order('seat_code');
+    if (sErr) throw sErr;
+
+    // 2. All students with seat_number (current year)
+    const { data: students, error: stErr } = await db.from('students')
+      .select('seat_number, name').eq('year', currentYear);
+    if (stErr) throw stErr;
+
+    // Build a map: seat_code → student name (if filled)
+    const filledMap = {};
+    (students || []).forEach(s => {
+      if (s.seat_number) filledMap[s.seat_number.toUpperCase().trim()] = s.name;
+    });
+
+    spinner.style.display = 'none';
+
+    if (!seats || seats.length === 0) {
+      empty.style.display = 'block';
+      document.getElementById('seatStatTotal').textContent  = 0;
+      document.getElementById('seatStatFilled').textContent = 0;
+      document.getElementById('seatStatEmpty').textContent  = 0;
+      return;
+    }
+
+    let filledCount = 0;
+    grid.innerHTML = '';
+    seats.forEach(seat => {
+      const code = seat.seat_code.toUpperCase().trim();
+      const studentName = filledMap[code];
+      const isFilled = !!studentName;
+      if (isFilled) filledCount++;
+
+      const tile = document.createElement('div');
+      tile.className = 'seat-tile ' + (isFilled ? 'seat-filled' : 'seat-empty');
+      tile.title = isFilled ? `Occupied by: ${studentName}` : 'Available';
+      tile.innerHTML = `
+        <span class="seat-status-dot"></span>
+        <span class="seat-code">${esc(code)}</span>
+        <span class="seat-student">${isFilled ? esc(studentName) : 'Empty'}</span>
+      `;
+      grid.appendChild(tile);
+    });
+
+    grid.style.display = 'grid';
+    document.getElementById('seatStatTotal').textContent  = seats.length;
+    document.getElementById('seatStatFilled').textContent = filledCount;
+    document.getElementById('seatStatEmpty').textContent  = seats.length - filledCount;
+
+  } catch(e) {
+    spinner.style.display = 'none';
+    showToast('Error loading seats: ' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// MANAGE SEATS MODAL
+// ============================================================
+document.getElementById('btnManageSeats').addEventListener('click', () => {
+  openModal('manageSeatsModal');
+  renderManageSeatsList();
+});
+
+async function renderManageSeatsList() {
+  const container = document.getElementById('manageSeatsList');
+  container.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+
+  try {
+    const { data: seats, error } = await db.from('seats').select('*').order('seat_code');
+    if (error) throw error;
+
+    // All students seat numbers (any year)
+    const { data: students } = await db.from('students').select('seat_number, name, year');
+    const filledMap = {};
+    (students || []).forEach(s => {
+      if (s.seat_number) filledMap[s.seat_number.toUpperCase().trim()] = { name: s.name, year: s.year };
+    });
+
+    if (!seats || seats.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:var(--gray-400);font-size:0.85rem;padding:1rem;">No seats added yet.</p>';
+      return;
+    }
+
+    container.innerHTML = seats.map(seat => {
+      const code = seat.seat_code.toUpperCase().trim();
+      const occupant = filledMap[code];
+      const isFilled = !!occupant;
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.75rem;margin-bottom:6px;border-radius:8px;background:${isFilled ? '#fdecea' : '#eafaf1'};border:1.5px solid ${isFilled ? '#e74c3c' : '#27ae60'};">
+          <div>
+            <span style="font-weight:700;font-size:0.95rem;color:${isFilled ? '#c0392b' : '#1e7e45'};">
+              ${esc(code)}
+            </span>
+            <span style="font-size:0.78rem;color:var(--gray-400);margin-left:8px;">
+              ${isFilled ? `🔴 ${esc(occupant.name)} (${occupant.year})` : '🟢 Available'}
+            </span>
+          </div>
+          <button onclick="deleteSeat('${seat.id}', '${esc(code)}', ${isFilled})"
+            style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:${isFilled ? '#c0392b' : '#999'};padding:4px 8px;border-radius:6px;transition:background 0.15s;"
+            title="Remove seat">✕</button>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="color:red;font-size:0.85rem;">${e.message}</p>`;
+  }
+}
+
+async function deleteSeat(id, code, isFilled) {
+  if (isFilled) {
+    showToast(`Cannot remove seat ${code} — it is occupied by a student.`, 'error');
+    return;
+  }
+  if (!confirm(`Remove seat "${code}"?`)) return;
+  try {
+    const { error } = await db.from('seats').delete().eq('id', id);
+    if (error) throw error;
+    showToast(`Seat ${code} removed.`, 'success');
+    renderManageSeatsList();
+    loadSeatMap();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// Add seat code(s)
+document.getElementById('btnAddSeatCode').addEventListener('click', addSeatCodes);
+document.getElementById('newSeatCode').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addSeatCodes();
+});
+
+async function addSeatCodes() {
+  const raw = document.getElementById('newSeatCode').value.trim();
+  if (!raw) { showToast('Enter at least one seat code.', 'error'); return; }
+
+  // Support comma-separated input
+  const codes = raw.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+  if (codes.length === 0) return;
+
+  const btn = document.getElementById('btnAddSeatCode');
+  btn.disabled = true; btn.textContent = '…';
+
+  try {
+    // Check for duplicates
+    const { data: existing } = await db.from('seats').select('seat_code').in('seat_code', codes);
+    const alreadyExist = (existing || []).map(s => s.seat_code.toUpperCase());
+
+    const toInsert = codes.filter(c => !alreadyExist.includes(c));
+
+    if (alreadyExist.length > 0) {
+      showToast(`Already exists: ${alreadyExist.join(', ')}`, 'error');
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await db.from('seats').insert(toInsert.map(c => ({ seat_code: c })));
+      if (error) throw error;
+      showToast(`Added: ${toInsert.join(', ')}`, 'success');
+    }
+
+    document.getElementById('newSeatCode').value = '';
+    renderManageSeatsList();
+    loadSeatMap();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '+ Add';
+  }
+}
+
+// ============================================================
+// SEAT VALIDATION — check before adding/editing student
+// ============================================================
+async function isSeatTaken(seatCode, excludeStudentId = null) {
+  if (!seatCode) return false;
+  const normalized = seatCode.trim().toUpperCase();
+  let query = db.from('students').select('id, name').ilike('seat_number', normalized);
+  if (excludeStudentId) query = query.neq('id', excludeStudentId);
+  const { data } = await query;
+  if (data && data.length > 0) return data[0]; // return the occupant
+  return false;
+}
+
+
 function esc(str) {
   const d = document.createElement('div');
   d.textContent = str || '';

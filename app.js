@@ -188,7 +188,34 @@ async function copyStudentsToNewYear(fromYear, toYear) {
   }
 }
 
-// ── Photo URL helper ──
+// ── Seats ──
+async function getSeats() {
+  const { data, error } = await supabase.from('seats').select('*').order('seat_code');
+  if (error) throw error;
+  return data || [];
+}
+
+async function addSeat(seatCode) {
+  const code = seatCode.trim().toUpperCase();
+  const { error } = await supabase.from('seats').insert({ seat_code: code });
+  if (error) throw error;
+}
+
+async function deleteSeat(id) {
+  const { error } = await supabase.from('seats').delete().eq('id', id);
+  if (error) throw error;
+}
+
+async function isSeatTaken(seatCode, excludeStudentId = null) {
+  if (!seatCode) return false;
+  const normalized = seatCode.trim().toUpperCase();
+  let query = supabase.from('students').select('id, name').ilike('seat_number', normalized);
+  if (excludeStudentId) query = query.neq('id', excludeStudentId);
+  const { data } = await query;
+  return (data && data.length > 0) ? data[0] : false;
+}
+
+
 function getPhotoUrl(url) {
   return url || null;
 }
@@ -205,6 +232,7 @@ window.GEL = {
   initSupabase, requireAuth, logout, showToast,
   getYears, addYear, getStudents, addStudent,
   getStudentPayments, markPayment, copyStudentsToNewYear,
+  getSeats, addSeat, deleteSeat, isSeatTaken,
   getPhotoUrl, formatDate,
   MONTHS,
 };
