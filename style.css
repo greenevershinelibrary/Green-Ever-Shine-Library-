@@ -310,6 +310,13 @@ select.form-control { cursor: pointer; }
 }
 .student-card:hover { box-shadow: var(--shadow-md); border-color: var(--red); }
 .student-card.overdue { border-left: 4px solid var(--red); }
+.student-card.long-press-active {
+  outline: 3px solid #e74c3c;
+  background: #fdecea;
+  transform: scale(0.97);
+  transition: transform 0.1s, background 0.1s;
+}
+.student-card { user-select: none; -webkit-user-select: none; }
 .student-card-photo {
   width: 52px; height: 52px;
   border-radius: 50%;

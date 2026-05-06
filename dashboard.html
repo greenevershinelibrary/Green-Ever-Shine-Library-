@@ -609,6 +609,7 @@ function buildCard(s) {
   }
 
   card.className = 'student-card';
+  card.title = 'Long press to delete this student';
 
   const photoHtml = s.photo_url
     ? `<img src="${s.photo_url}" alt="${esc(s.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`
@@ -628,6 +629,35 @@ function buildCard(s) {
   `;
 
   card.querySelector('button').addEventListener('click', () => openDetail(s));
+
+  // Long-press to delete student
+  let longPressTimer = null;
+  let longPressActive = false;
+
+  function startLongPress(e) {
+    longPressActive = false;
+    longPressTimer = setTimeout(() => {
+      longPressActive = true;
+      card.classList.add('long-press-active');
+      if (confirm(`🗑 Delete student "${s.name}"?\n\nThis will permanently remove the student and all payment records.`)) {
+        deleteStudent(s.id, s.name);
+      } else {
+        card.classList.remove('long-press-active');
+      }
+    }, 600);
+  }
+
+  function cancelLongPress() {
+    clearTimeout(longPressTimer);
+    card.classList.remove('long-press-active');
+  }
+
+  card.addEventListener('mousedown', startLongPress);
+  card.addEventListener('touchstart', startLongPress, { passive: true });
+  card.addEventListener('mouseup', cancelLongPress);
+  card.addEventListener('mouseleave', cancelLongPress);
+  card.addEventListener('touchend', cancelLongPress);
+  card.addEventListener('touchcancel', cancelLongPress);
 
   // Async: check if this student has unpaid fees this month
   if (s.joining_date) {
@@ -1284,6 +1314,15 @@ function switchTab(tab) {
 }
 
 // ============================================================
+// NATURAL SORT — sorts seats like 1,2,3...10 or A1,A2...B1
+// ============================================================
+function naturalSortSeats(a, b) {
+  const codeA = (a.seat_code || '').toUpperCase().trim();
+  const codeB = (b.seat_code || '').toUpperCase().trim();
+  return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+// ============================================================
 // SEAT MAP — load & render
 // ============================================================
 async function loadSeatMap() {
@@ -1296,8 +1335,9 @@ async function loadSeatMap() {
 
   try {
     // 1. All seats
-    const { data: seats, error: sErr } = await db.from('seats').select('*').order('seat_code');
+    const { data: seats, error: sErr } = await db.from('seats').select('*');
     if (sErr) throw sErr;
+    if (seats) seats.sort(naturalSortSeats);
 
     // 2. All students with seat_number (current year)
     const { data: students, error: stErr } = await db.from('students')
@@ -1363,8 +1403,9 @@ async function renderManageSeatsList() {
   container.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
 
   try {
-    const { data: seats, error } = await db.from('seats').select('*').order('seat_code');
+    const { data: seats, error } = await db.from('seats').select('*');
     if (error) throw error;
+    if (seats) seats.sort(naturalSortSeats);
 
     // All students seat numbers (any year)
     const { data: students } = await db.from('students').select('seat_number, name, year');
